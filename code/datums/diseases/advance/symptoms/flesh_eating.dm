@@ -22,7 +22,7 @@ Bonus
 	stealth = -3
 	resistance = -4
 	stage_speed = 0
-	transmittable = -4
+	transmittable = -3
 	level = 6
 	severity = 5
 	base_message_chance = 50
@@ -30,19 +30,23 @@ Bonus
 	symptom_delay_max = 60
 	var/bleed = FALSE
 	var/pain = FALSE
-	threshold_desc = "<b>Resistance 7:</b> Host will bleed profusely during necrosis.<br>\
-					  <b>Transmission 8:</b> Causes extreme pain to the host, weakening it."
+	threshold_descs = list(
+		"Resistance 7" = "Host will bleed profusely during necrosis.",
+		"Transmission 8" = "Causes extreme pain to the host, weakening it.",
+	)
 
 /datum/symptom/flesh_eating/Start(datum/disease/advance/A)
-	if(!..())
+	. = ..()
+	if(!.)
 		return
-	if(A.properties["resistance"] >= 7) //extra bleeding
+	if(A.totalResistance() >= 7) //extra bleeding
 		bleed = TRUE
-	if(A.properties["transmittable"] >= 8) //extra stamina damage
+	if(A.totalTransmittable() >= 8) //extra stamina damage
 		pain = TRUE
 
 /datum/symptom/flesh_eating/Activate(datum/disease/advance/A)
-	if(!..())
+	. = ..()
+	if(!.)
 		return
 	var/mob/living/M = A.affected_mob
 	switch(A.stage)
@@ -55,13 +59,14 @@ Bonus
 
 /datum/symptom/flesh_eating/proc/Flesheat(mob/living/M, datum/disease/advance/A)
 	var/get_damage = rand(15,25) * power
-	M.adjustBruteLoss(get_damage)
+	M.take_overall_damage(brute = get_damage, required_status = BODYPART_ORGANIC)
 	if(pain)
-		M.adjustStaminaLoss(get_damage)
+		M.adjustStaminaLoss(get_damage * 2)
 	if(bleed)
 		if(ishuman(M))
 			var/mob/living/carbon/human/H = M
-			H.bleed_rate += 5 * power
+			var/obj/item/bodypart/random_part = pick(H.bodyparts)
+			random_part.generic_bleedstacks += 5 * power
 	return 1
 
 /*
@@ -96,19 +101,23 @@ Bonus
 	symptom_delay_max = 6
 	var/chems = FALSE
 	var/zombie = FALSE
-	threshold_desc = "<b>Stage Speed 7:</b> Synthesizes Heparin and Lipolicide inside the host, causing increased bleeding and hunger.<br>\
-					  <b>Stealth 5:</b> The symptom remains hidden until active."
+	threshold_descs = list(
+		"Stage Speed 7" = "Synthesizes Heparin and Lipolicide inside the host, causing increased bleeding and hunger.",
+		"Stealth 5" = "The symptom remains hidden until active.",
+	)
 
 /datum/symptom/flesh_death/Start(datum/disease/advance/A)
-	if(!..())
+	. = ..()
+	if(!.)
 		return
-	if(A.properties["stealth"] >= 5)
+	if(A.totalStealth() >= 5)
 		suppress_warning = TRUE
-	if(A.properties["stage_rate"] >= 7) //bleeding and hunger
+	if(A.totalStageSpeed() >= 7) //bleeding and hunger
 		chems = TRUE
 
 /datum/symptom/flesh_death/Activate(datum/disease/advance/A)
-	if(!..())
+	. = ..()
+	if(!.)
 		return
 	var/mob/living/M = A.affected_mob
 	switch(A.stage)
@@ -122,9 +131,9 @@ Bonus
 
 /datum/symptom/flesh_death/proc/Flesh_death(mob/living/M, datum/disease/advance/A)
 	var/get_damage = rand(6,10)
-	M.adjustBruteLoss(get_damage)
+	M.take_overall_damage(brute = get_damage, required_status = BODYPART_ORGANIC)
 	if(chems)
-		M.reagents.add_reagent_list(list("heparin" = 2, "lipolicide" = 2))
+		M.reagents.add_reagent_list(list(/datum/reagent/toxin/heparin = 2, /datum/reagent/toxin/lipolicide = 2))
 	if(zombie)
-		M.reagents.add_reagent("romerol", 1)
+		M.reagents.add_reagent(/datum/reagent/romerol, 1)
 	return 1
